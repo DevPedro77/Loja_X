@@ -1,0 +1,17 @@
+(function(){
+  window['optimizely'] = window['optimizely'] || [];
+  window['optimizely'].push(['activateGeoDelayedExperiments', {
+    'location':{
+      'city': "RIODEJANEIRO",
+      'continent': "SA",
+      'country': "BR",
+      'region': "RJ",
+      'dma': ""
+    },
+    'ip':"168.194.165.31"
+  }]);
+})
+//
+()
+
+;

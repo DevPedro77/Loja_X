@@ -1,0 +1,2 @@
+define(["gtmUtilities"],function(a){"use strict";/* jshint esversion: 6 */ /* jshint module: true */(function gtmCustomTracking(){var b=document.querySelectorAll("[data-customGtm]");b.forEach(function(b){b.addEventListener("click",function(){var c=b.dataset.gtmlabel,d=b.dataset.gtmcategory,e=b.dataset.gtmaction,f=b.dataset.gtmga4eventname;(0,a.safeGTMuaEventsPusher)("interactionEvent",d,e,c),f&&(0,a.ga4SendGenericEvent)(f,{category:d,action:e,label:c})})})})()});
+//# sourceMappingURL=gtm-custom-tracking.js.map

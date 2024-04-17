@@ -1,0 +1,2 @@
+define(["exports","genericUtilities"],function(a,b){"use strict";Object.defineProperty(a,"__esModule",{value:!0}),a.beaconLoad=function(a){var c=a.fcDomain,d=a.fcStoreName,e=a.fcToken;c&&d&&e&&(0,b.appendScript)("".concat(c,"/?shop=").concat(d,"&sid=").concat(e))}});
+//# sourceMappingURL=riskified.js.map

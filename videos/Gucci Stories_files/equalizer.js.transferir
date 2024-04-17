@@ -1,0 +1,1 @@
+"use strict";define(["jquery","eventDispatcher"],function(e,t){function i(){var t=0;a.css({height:"auto"}),e.each(a,function(i,n){t=Math.max(t,e(n).outerHeight())}),a.css({height:t+"px"})}var n=e('[data-module="equalizer"]'),a=n.find("[data-equalize]");return e(window).resize(function(){i()}),{load:function(){function e(){}i(),t.dispatchAndListen("equalizer",e)}}});

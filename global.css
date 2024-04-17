@@ -1,0 +1,245 @@
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: "Merriweather Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+#cabecalho {
+  background-color: #ffffff;
+  padding: 3px;
+}
+
+#cabecalho h1 {
+  color: rgb(0, 0, 0);
+  text-align: center;
+  font-style: italic;
+  font-size: 3rem;
+  margin: 10px;
+  cursor: pointer;
+}
+
+#navegacao ul a {
+  color: rgb(0, 0, 0);
+}
+
+.carousel-item img {
+  width: 1440px;
+  height: 800px;
+}
+
+#new-in-card img {
+  width: 320px;
+}
+
+
+
+
+
+#marcas img {
+  height: 670px;
+  width: 500px;
+  margin-top: 30px;
+}
+
+#homeware img {
+  width: 280px;
+}
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.heart-button {
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.heart-button i {
+  font-size: 20px;
+}
+
+.heart-button.clicked {
+  background-color: rgb(255, 255, 255);
+  animation: pulse 1s infinite alternate;
+}
+
+.heart-button.clicked i {
+  color: rgb(255, 0, 0);
+}
+
+.price-container {
+  display: flex;
+  align-items: center;justify-content: space-between;
+  font-size: 16px;
+}
+.social-links li {
+  list-style: none;
+  display: inline;
+}
+
+.social-links a {
+  text-decoration: none;
+}
+
+#menssagem {
+  resize: none;
+  background-color: #ebebeb;
+}
+/* Estilos gerais */
+
+/* Estilos para dispositivos móveis */
+@media (max-width: 767px) {
+  /* Estilos para todas as imagens dentro do contêiner */
+  .container img {
+    max-width: 100%; /* Garante que as imagens se ajustem ao contêiner */
+    height: auto;
+  }
+
+  /* Adiciona um espaçamento interno no cabeçalho */
+  #cabecalho {
+    background-color: #f8f9fa;
+    padding: 15px 0;
+  }
+  
+  .navbar-brand {
+    font-size: 24px;
+    font-weight: bold;
+    color: #000;
+  }
+  
+  .navbar-toggler {
+    border: none;
+  }
+  
+  .navbar-nav .nav-link {
+    font-weight: bold;
+    color: #000;
+  }
+  
+  /* Estilos para o carrossel */
+  #carrousel {
+    margin-top: 20px;
+  }
+  
+  .carousel-item img {
+    width: 100%;
+    height: 211px;
+  }
+  
+  
+  #new-in-card {
+    margin-top: 8px;
+  }
+  #new-in-card h4 {
+    text-align: center;
+  }
+  #new-in-card img {
+    width: 100%;
+  }
+
+  #new-in-card h5 {
+    padding-top: 2vh;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  #new-in-card p , 
+  .price
+  {
+    font-size: 5vw;
+    text-align: center;
+    
+  }
+  #edicao-limitada {
+    padding-top: 8px;
+    text-align: center;
+    font-weight: bold;
+  }
+    #itens-raros{
+      padding-top: 2vh;
+      width: 100%;
+      
+    }
+    #itens-raros p {
+      font-size: small;
+    }
+
+    #marcas {
+      max-width: 100%;
+    }
+    #marcas img {
+      width: 100%;
+      height: auto;
+    }
+    #marcas h2 {
+      text-align: center;
+      padding-top: 8px;
+    }
+
+    #homeware h1{
+      text-align: center;
+    }
+    #homeware img {
+      width: 100%;
+      padding-top: 2px;
+    }
+    #homeware .price-container {
+      font-size: 22px;
+      margin: 0 auto;
+    }
+
+}
+
+/* Estilos para tablets */
+@media (min-width: 768px) and (max-width: 1024px) {
+  #cabecalho  {
+    max-width: 100%;
+    display: block;
+  }
+  .carousel-item img {
+    width: 100%;
+    height: 558px;
+  }
+
+  #new-in{
+    width: 100%;
+    
+  }
+  #new-in img {
+    max-width: 100%;
+  }
+
+  #new-in-card .col-md-3,
+  #homeware .col-md-3{
+    flex: 0 0 50%;
+    max-width: 50%;
+    padding-top: 8px;
+
+}
+
+
+}
+
+
+
+
+
+

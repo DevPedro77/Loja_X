@@ -1,0 +1,1581 @@
+(() => {
+	const initXgenIntegration = () => {
+		if (window.isXgenLoadedAlready) {
+			return false;
+		}
+
+		window.isXgenLoadedAlready = true;
+
+		let xgenRecsData;
+		let xgenElementsMap;
+		const isGiftingPLP = window.location.pathname.endsWith('/curated-for-you');
+
+		function getAbGroupForXgen() {
+			try {
+				return window.recsAbTest?.version == 'random' ? 'Random' : 'XGen';
+			} catch (e) {
+				return false;
+			}
+		}
+
+		function initXgenRenderScript() {
+			window.xgen_theme_integration = true;
+
+			class RenderApiError extends Error {
+				constructor(message) {
+					super(message);
+					this.name = 'RenderApiError';
+				}
+			}
+			class xgenUtil {
+				setCookie(cname, cvalue, expiration) {
+					document.cookie = cname + '=' + cvalue + ';expires=' + expiration + ';path=/';
+				}
+
+				getCookie(cname) {
+					var name = cname + '=';
+					var ca = document.cookie.split(';');
+					for (var i = 0; i < ca.length; i++) {
+						var c = ca[i];
+						while (c.charAt(0) == ' ') {
+							c = c.substring(1);
+						}
+						if (c.indexOf(name) == 0) {
+							return c.substring(name.length, c.length);
+						}
+					}
+					return '';
+				}
+
+				getCookies(name) {
+					const cookieList = [];
+					name = name + '=';
+					let decodedCookie = decodeURIComponent(document.cookie);
+					let ca = decodedCookie.split(';');
+					for (let i = 0; i < ca.length; i++) {
+						let c = ca[i];
+						while (c.charAt(0) == ' ') {
+							c = c.substring(1);
+						}
+						if (c.indexOf(name) == 0) {
+							let cookieVal = c.substring(name.length, c.length);
+							try {
+								cookieList.push(JSON.parse(cookieVal));
+							} catch (e) {
+								cookieList.push(cookieVal);
+							}
+						}
+					}
+					return cookieList;
+				}
+
+				saveUserToTracker(data) {
+					var eventMeta = JSON.parse(JSON.stringify(data));
+					delete eventMeta.access_token;
+					delete eventMeta.refresh_token;
+					delete eventMeta.expiration_date;
+					window.xgenTracker.setUserInfo(JSON.stringify(eventMeta));
+				}
+
+				forceJsonString(tag) {
+					if (typeof tag == 'string') {
+						return tag;
+					} else {
+						return JSON.stringify(tag);
+					}
+				}
+
+				forceJsonString(tag) {
+					if (typeof tag == 'string') {
+						return tag;
+					} else {
+						return JSON.stringify(tag);
+					}
+				}
+
+				generateUserId() {
+					return Math.random().toString(36).substring(2) + new Date().getTime().toString(36);
+				}
+			}
+
+			class xgenLoader {
+				constructor() {
+					this.user = {};
+					this.abinfo = {};
+					this.pageContext = {};
+					this.headers = {};
+					const { locale, currency } = this.getLocaleConfig();
+					this.locale = locale;
+					this.currency_code = currency;
+				}
+				// use collection name to identify
+				checkCrawler() {
+					const re = new RegExp('bot|crawler|spider|crawling|BingPreview');
+					return re.test(navigator.userAgent);
+				}
+
+				getUserMetaData() {
+					var metaData = window.xgenUtil.getCookie('xgen_meta_data');
+					if (metaData) {
+						const metaJson = JSON.parse(metaData);
+						window.xgenUtil.saveUserToTracker(metaJson);
+
+						if (metaJson.stale) {
+							this.headers['x-api-key'] = '6d0371fe7b2bbf74dbdf6dd91e11a8ea';
+							this.headers['x-api-secret'] =
+								'1a737226bd5142f08278c0183b9af2d08bb79a2cbb9d024400fc595711918f20879604a50736307cfdd183c70d2195b9f39e6dcba7aafdebc66925a307ead4b9';
+						} else {
+							this.user['access_token'] = metaJson['access_token'];
+							this.user['expiration_date'] = metaJson['expiration_date'];
+							if (metaJson['access_token']) this.headers['access_token'] = metaJson['access_token'];
+							else {
+								this.headers['x-api-key'] = '6d0371fe7b2bbf74dbdf6dd91e11a8ea';
+								this.headers['x-api-secret'] =
+									'1a737226bd5142f08278c0183b9af2d08bb79a2cbb9d024400fc595711918f20879604a50736307cfdd183c70d2195b9f39e6dcba7aafdebc66925a307ead4b9';
+							}
+						}
+						var abinfo = window.xgenUtil.getCookie('xgen_ab_info');
+						if (abinfo) this.abinfo = JSON.parse(abinfo);
+					} else {
+						window.xgenUtil.saveUserToTracker({ stale: true });
+						this.headers['x-api-key'] = '6d0371fe7b2bbf74dbdf6dd91e11a8ea';
+						this.headers['x-api-secret'] =
+							'1a737226bd5142f08278c0183b9af2d08bb79a2cbb9d024400fc595711918f20879604a50736307cfdd183c70d2195b9f39e6dcba7aafdebc66925a307ead4b9';
+					}
+				}
+
+				getLocaleConfig() {
+					try {
+						const localeConfigs = JSON.parse(
+							'{"ae":{"locale":"en_AE","url_pattern":"^/ae/.*","currency":"AED"},"at":{"locale":"en_AT","url_pattern":"^/at/.*","currency":"EUR"},"au":{"locale":"en_AU","url_pattern":"^/au/.*","currency":"AUD"},"be":{"locale":"en_BE","url_pattern":"^/be/.*","currency":"EUR"},"bg":{"locale":"en_BG","url_pattern":"^/bg/.*","currency":"BGN"},"ca":{"locale":"en_CA","url_pattern":"^/ca/.*","currency":"CAD"},"ch":{"locale":"en_CH","url_pattern":"^/ch/.*","currency":"CHF"},"cz":{"locale":"en_CZ","url_pattern":"^/cz/.*","currency":"CZK"},"de":{"locale":"de_DE","url_pattern":"^/de/.*","currency":"EUR"},"dk":{"locale":"en_DK","url_pattern":"^/dk/.*","currency":"DKK"},"es":{"locale":"es_ES","url_pattern":"^/es/.*","currency":"EUR"},"fi":{"locale":"en_FI","url_pattern":"^/fi/.*","currency":"EUR"},"fr":{"locale":"fr_FR","url_pattern":"^/fr/.*","currency":"EUR"},"gr":{"locale":"en_GR","url_pattern":"^/gr/.*","currency":"EUR"},"hk":{"locale":"hk_EN","url_pattern":"^/hk/.*","currency":"HKD"},"hu":{"locale":"en_HU","url_pattern":"^/hu/.*","currency":"HUF"},"ie":{"locale":"en_IE","url_pattern":"^/ie/.*","currency":"EUR"},"it":{"locale":"it_IT","url_pattern":"^/it/.*","currency":"EUR"},"jp":{"locale":"ja_JP","url_pattern":"^/jp/.*","currency":"JPY"},"kr":{"locale":"en_KR","url_pattern":"^/kr/.*","currency":"KRW"},"kw":{"locale":"en_KW","url_pattern":"^/kw/.*","currency":"KWD"},"lu":{"locale":"en_LU","url_pattern":"^/lu/.*","currency":"EUR"},"mx":{"locale":"en_MX","url_pattern":"^/mx/.*","currency":"MXN"},"nl":{"locale":"en_NL","url_pattern":"^/nl/.*","currency":"EUR"},"no":{"locale":"en_NO","url_pattern":"^/no/.*","currency":"NOK"},"nz":{"locale":"en_NZ","url_pattern":"^/nz/.*","currency":"NZD"},"pl":{"locale":"en_PL","url_pattern":"^/pl/.*","currency":"PLN"},"pt":{"locale":"en_PT","url_pattern":"^/pt/.*","currency":"EUR"},"qa":{"locale":"en_QA","url_pattern":"^/qa/.*","currency":"QAR"},"ro":{"locale":"en_RO","url_pattern":"^/ro/.*","currency":"RON"},"sa":{"locale":"en_SA","url_pattern":"^/sa/.*","currency":"SAR"},"se":{"locale":"se_EN","url_pattern":"^/se/.*","currency":"SEK"},"sg":{"locale":"en_SG","url_pattern":"^/sg/.*","currency":"SGD"},"si":{"locale":"en_SI","url_pattern":"^/si/.*","currency":"EUR"},"th":{"locale":"en_TH","url_pattern":"^/th/.*","currency":"THB"},"tr":{"locale":"en_TR","url_pattern":"^/tr/.*","currency":"TRY"},"uk":{"locale":"en_GB","url_pattern":"^/uk/.*","currency":"GBP"},"us":{"locale":"en_US","url_pattern":"^/us/.*","currency":"USD"},"za":{"locale":"en_ZA","url_pattern":"^/za/.*","currency":"ZAR"},"zh":{"locale":"hk_ZH","url_pattern":"^/zh/.*","currency":"CNY"}}'
+						);
+
+						for (const locale in localeConfigs) {
+							var { url_pattern, ...config } = localeConfigs[locale];
+
+							if (
+								(url_pattern && window.location.pathname.match(url_pattern)) ||
+								window.location.pathname.startsWith(`/${locale}`)
+							) {
+								break;
+							}
+
+							config = null; // no match, reset.
+						}
+					} catch (err) {
+						console.log(
+							'Error tracking: GTM locale config is not setup correctly. Customer id: ' +
+								'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz'
+						);
+					} finally {
+						return (config ??= {
+							locale: null,
+							currency: typeof window !== 'undefined' && 'siteCurrency' in window ? window.siteCurrency : null
+						}); // fallback worst case;
+					}
+				}
+
+				// if prevent_override == true, we will not override an existing key
+				// otherwise, we will override the key
+				savePageContext(key, value, prevent_override = false) {
+					if (prevent_override) {
+						if (!Object.keys(this.pageContext).includes(key)) this.pageContext[key] = value;
+					} else {
+						this.pageContext[key] = value;
+					}
+				}
+			}
+
+			window.xgenRecentlyViewed = productID => {
+				let recentlyViewed = JSON.parse(localStorage.getItem('xgenRecentlyViewed') || '[]');
+				let ruleSet = recentlyViewed.filter(rvItem => rvItem != productID);
+				ruleSet = ruleSet.join('|');
+				recentlyViewed.unshift(productID);
+				recentlyViewed = [...new Set(recentlyViewed)];
+				if (recentlyViewed.length > 12) recentlyViewed.pop();
+				localStorage.setItem('xgenRecentlyViewed', JSON.stringify(recentlyViewed));
+				return ruleSet;
+			};
+
+			class xgenTracker {
+				constructor() {
+					this.observers = {};
+					this.userInfo = '';
+					this.queuedEvents = [];
+					this.ecommerceItems = [];
+					this.renderCalled = false;
+				}
+
+				// Sends event and returns error (null or error message)
+				async sendEvent(event) {
+					var err = null;
+					if (
+						(JSON.parse(this.userInfo || {}).stale === false &&
+							window.xgenLoader?.abinfo?.testing_group_name &&
+							window.xgenLoader?.user?.session_id) ||
+						this.renderCalled
+					) {
+						var userId = window.xgenLoader.user['user_id'];
+						var locale = window.xgenLoader.locale;
+						var trackerApi = new URL(
+							'https://tracker.xgen.dev/customers/l3z5yo6dslfpqkqmagtxb8spqw4zc7cz/users/' + userId + event.apiPath
+						);
+
+						var defaultParams = {
+							rec: '1',
+							idsite: '9447cb80607e4ba5bf7299730ba5d499',
+							url: document.URL,
+							urlref: document.referrer,
+							locale: locale
+						};
+
+						let tmpAbInfo = { ...window.xgenLoader.abinfo };
+						tmpAbInfo.testing_group_name = `${getAbGroupForXgen()} ${tmpAbInfo.testing_group_name}`;
+
+						defaultParams['uid'] = JSON.stringify({
+							...JSON.parse(this.userInfo),
+							...{ session_id: window.xgenLoader.user.session_id },
+							...tmpAbInfo
+						});
+
+						let context = {};
+						try {
+							const gaIdList = window.xgenUtil.getCookies('_ga');
+							const gaUId = gaIdList.find(gaId => gaId.startsWith('GA1.2')) ?? gaIdList[0];
+							const gaIdParts = gaUId?.match(/^([^.]+\.[^.]+)\.(.*)/);
+							context['ga_type'] = gaIdParts?.[1];
+							context['ga_id'] = gaIdParts?.[2];
+						} catch (error) {
+							console.log('Error tracking GA id:', error.toString());
+						}
+
+						var params = { ...defaultParams, ...event.params, context };
+
+						let response = await fetch(trackerApi, {
+							method: 'POST',
+							keepalive: true,
+							headers: { 'Content-Type': 'application/json', 'cstid': 'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz' },
+							body: JSON.stringify(params)
+						});
+						if (response.status >= 400) {
+							const body = await response.json();
+							err = JSON.stringify(body);
+						}
+					} else {
+						this.queuedEvents.push(event);
+					}
+					return err;
+				}
+
+				trackPageView() {
+					var path = '/page-view';
+					this.sendEvent({
+						params: {
+							action_name: 'page_view',
+							action_detail: 'page_view',
+							action_type: 'ecomm'
+						},
+						apiPath: path
+					}).then(err => {
+						if (err != null) {
+							window.xgenTracker.trackEvent(
+								'Error tracking',
+								'Event tracker error',
+								'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz',
+								err.toString()
+							);
+						}
+					});
+				}
+
+				addEcommerceItem(productID, productTitle, tag, price, quantity = 1) {
+					this.ecommerceItems.push([productID, productTitle, window.xgenUtil.forceJsonString(tag), price, quantity]);
+				}
+
+				trackProductDetailPage(productID, productTitle, tag, price) {
+					window.xgenLoader.savePageContext('pdpCode', String(productID));
+					var recentlyViewed = window.xgenRecentlyViewed(String(productID));
+					window.xgenLoader.savePageContext('recentlyViewed', recentlyViewed);
+					var path = '/product-view';
+					this.sendEvent({
+						params: {
+							cvar: JSON.stringify({
+								2: ['_pkp', price],
+								3: ['_pks', productID],
+								4: ['_pkn', productTitle],
+								5: ['_pkc', window.xgenUtil.forceJsonString(tag)]
+							}),
+							action_name: 'product_view',
+							action_detail: 'product_view',
+							action_type: 'ecomm'
+						},
+						apiPath: path
+					});
+				}
+
+				trackProductCategoryPage(category) {
+					var path = '/category-view';
+					this.sendEvent({
+						params: {
+							cvar: JSON.stringify({ 5: ['_pkc', category] }),
+							action_name: 'category_view',
+							action_detail: 'category_view',
+							action_type: 'ecomm'
+						},
+						apiPath: path
+					});
+				}
+
+				trackAddToCart(productID, productTitle, tag, price) {
+					this.addEcommerceItem(productID, productTitle, window.xgenUtil.forceJsonString(tag), price);
+					var path = '/product-add';
+					this.sendEvent({
+						params: {
+							ec_items: JSON.stringify(this.ecommerceItems),
+							revenue: price,
+							action_name: 'product_add',
+							action_detail: 'product_add',
+							action_type: 'ecomm'
+						},
+						apiPath: path
+					});
+				}
+
+				trackPurchase(orderId, totalGrant, subtotal, tax, discount) {
+					var item;
+					var path = '/product-purchase';
+					for (item of this.ecommerceItems) {
+						this.sendEvent({
+							params: {
+								ec_items: JSON.stringify([item]),
+								ec_id: JSON.stringify(orderId),
+								action_name: 'product_purchase',
+								action_detail: 'product_purchase',
+								action_type: 'ecomm',
+								version: '2'
+							},
+							apiPath: path
+						});
+					}
+					path = '/purchase-order';
+					this.sendEvent({
+						params: {
+							ec_items: JSON.stringify(this.ecommerceItems),
+							revenue: totalGrant,
+							ec_id: JSON.stringify(orderId),
+							ec_st: subtotal,
+							ec_tx: tax,
+							ec_dt: JSON.stringify(discount),
+							idgoal: '0',
+							action_name: 'purchase_order',
+							action_detail: 'purchase_order',
+							action_type: 'ecomm',
+							version: '2'
+						},
+						apiPath: path
+					});
+				}
+
+				trackEvent(eventCategory, eventAction, eventName, eventValue) {
+					var path = '/error';
+					this.sendEvent({
+						params: {
+							e_c: eventCategory,
+							e_a: eventAction,
+							e_n: eventName,
+							e_v: eventValue,
+							action_name: 'event_tracking',
+							action_detail: eventAction,
+							action_type: eventCategory
+						},
+						apiPath: path
+					});
+				}
+
+				trackContentView(contentName, contentPiece, contentTarget) {
+					var path = '/element-view';
+					this.sendEvent({
+						params: {
+							c_n: contentName,
+							c_p: contentPiece,
+							c_t: contentTarget,
+							c_i: 'elementViewed',
+							action_name: 'content_tracking',
+							action_detail: 'element_view',
+							action_type: 'smart_element'
+						},
+						apiPath: path
+					});
+				}
+
+				trackContentImpression(contentName, contentPiece, contentTarget) {
+					var path = '/element-impression';
+					this.sendEvent({
+						params: {
+							c_n: contentName,
+							c_p: contentPiece,
+							c_t: contentTarget,
+							action_name: 'content_tracking',
+							action_detail: 'element_impression',
+							action_type: 'smart_element'
+						},
+						apiPath: path
+					});
+				}
+
+				trackContentInteraction(contentInteraction, contentName, contentPiece, contentTarget) {
+					var path = '/element-click';
+					this.sendEvent({
+						params: {
+							c_n: contentName,
+							c_p: contentPiece,
+							c_t: contentTarget,
+							c_i: contentInteraction,
+							action_name: 'content_tracking',
+							action_detail: 'element_click',
+							action_type: 'smart_element'
+						},
+						apiPath: path
+					});
+				}
+
+				setUserInfo(userInfo) {
+					this.userInfo = userInfo;
+				}
+			}
+
+			class xgenRender {
+				constructor() {
+					this.validProduct = 0;
+					this.timeStamp = new Date();
+					this.userId = window.xgenLoader.user['user_id'];
+					window.xgenLoader.savePageContext('pathname', window.location.pathname, true);
+					window.xgenLoader.savePageContext('queryString', window.location.search.replace('?', ''), true);
+					window.xgenLoader.savePageContext('timestamp', this.timeStamp.getTime().toString());
+
+					if (!location.host.includes('www.gucci.com')) {
+						const base = window.location.search.replace('?', '');
+						const added = base.length ? base + '&devHost=true' : 'devHost=true';
+						window.xgenLoader.savePageContext('queryString', added, true);
+					}
+
+					this.payload = {
+						user: window.xgenLoader.user,
+						abinfo: window.xgenLoader.abinfo,
+						context: window.xgenLoader.pageContext
+					};
+					this.headers = {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/plain, */*',
+						...window.xgenLoader.headers
+					};
+				}
+
+				async renderCallApi(payload) {
+					const userId = this.userId;
+					const renderApi =
+						'https://prediction.xgen.dev/render/customers/l3z5yo6dslfpqkqmagtxb8spqw4zc7cz/users/' +
+						userId +
+						'?authenticator_id=l3z5yo6dslfpqkqmagtxb8spqw4zc7cz';
+					try {
+						const response = await fetch(renderApi, {
+							method: 'POST',
+							headers: this.headers,
+							body: JSON.stringify(payload)
+						});
+						if (!response.ok) {
+							const message = `api response: ${response.status}`;
+							throw new Error(message);
+						}
+						const data = await response.json();
+						xgenRecsData = data;
+						window.xgenCurrentPlacement = '';
+
+						try {
+							xgenElementsMap =
+								data.render_data?.reduce(
+									(elementMap, currentElement) => ({
+										...elementMap,
+										[currentElement.element.element_id]: currentElement
+									}),
+									{}
+								) || {};
+						} catch (e) {
+							console.log('No elements to map on this page');
+						}
+						try {
+							if (xgenRecsData?.render_data?.length) {
+								window.xgenCurrentPlacement = xgenRecsData.render_data?.find(
+									elementObj => !/\bpinned\b/.test(elementObj.element?.element_name?.toLowerCase())
+								)?.element?.element_id;
+							}
+						} catch (e) {
+							console.log('No xgen elements in this page');
+						}
+						window.dispatchEvent(new Event('xgenRendered'));
+						return data;
+					} catch (err) {
+						const message = `${renderApi} - ${JSON.stringify(payload)} - ${err.toString()}`;
+						throw new RenderApiError(message);
+					}
+				}
+				getQueryVariable(variable) {
+					var query = window.location.search.substring(1);
+					var vars = query.split('&');
+					for (var i = 0; i < vars.length; i++) {
+						var pair = vars[i].split('=');
+						if (pair[0] == variable) {
+							return pair[1];
+						}
+					}
+					return false;
+				}
+				//Replace template variables with prediction data
+				parseRecs(htmlStr, recObj) {
+					var html = htmlStr.replace(/{{/g, '{{***');
+					var arr = html.split(/{{(.+?)?}}/g);
+					var withRecs = arr
+						.map(function (item) {
+							if (item.match(/\*\*\*/g)) {
+								var val = item.replace('***', '');
+								var attr = recObj[val];
+								if (typeof attr == 'object') return JSON.stringify(attr);
+								else return attr;
+							}
+							return item;
+						})
+						.join('');
+					return withRecs;
+				}
+				//Parse SEML string to HTML string
+				parseSEML(seml, dbs) {
+					//convert SEML into a document
+					var doc = document.createElement('div');
+					doc.innerHTML = seml;
+					//get <catalog> elements
+					var catalogNodes = doc.getElementsByTagName('catalog');
+					var catalogList = Array.prototype.slice.call(catalogNodes);
+					//iterate through catalogs
+					catalogList.forEach(
+						function (cat) {
+							var repeat = cat.getAttribute('repeat');
+							//get source data
+							var name = cat.getAttribute('name');
+							var db = dbs[name];
+							if (db) {
+								//expand <rec> elements
+								if (/^\d+$/.test(repeat)) {
+									var num = parseInt(repeat);
+									var recTemp = cat.querySelector('rec');
+									var arr = Array.apply(null, Array(num))
+										.map(function () {
+											return recTemp.outerHTML;
+										})
+										.join('');
+									cat.innerHTML = arr;
+								}
+								//get <rec> elements
+								var recNodes = cat.getElementsByTagName('rec');
+								var recList = Array.prototype.slice.call(recNodes);
+								//iterate through recs
+								recList.forEach(
+									function (rec, i) {
+										if (db[i]) {
+											rec.innerHTML = this.parseb(rec.innerHTML, db[i]);
+											this.validProduct += 1;
+										}
+									}.bind(this)
+								);
+								if (cat.hasAttribute('remove')) {
+									recList.forEach(function (rec, i) {
+										cat.parentNode.insertBefore(rec.children[0], cat);
+									});
+									cat.parentNode.removeChild(cat);
+								}
+							}
+						}.bind(this)
+					);
+					//return document as string
+					return doc.innerHTML;
+				}
+				parseSEMLv2(seml, element_id, dbs) {
+					var doc = document.createElement('div');
+					doc.innerHTML = seml;
+					var listNodes = doc.querySelectorAll('[xse-type="list"]');
+					var listList = Array.prototype.slice.call(listNodes);
+					listList.forEach(
+						function (item) {
+							var catalog = item.getAttribute('catalog') || 'product_catalog';
+							var db = dbs[catalog];
+							var repeat = parseInt(item.getAttribute('repeat'));
+							if (!isNaN(repeat) && repeat > db.length) repeat = db.length;
+							if (window.xgenFilterFunc) [db, repeat] = window.xgenFilterFunc(db, repeat, element_id);
+							if (db) {
+								if (!isNaN(repeat)) {
+									var num = parseInt(repeat);
+									var recTemp = item.querySelector("[xse-type='rec']");
+									if (recTemp) {
+										var arr = Array.apply(null, Array(num))
+											.map(function () {
+												return recTemp.outerHTML;
+											})
+											.join('');
+										item.innerHTML = arr;
+									}
+								}
+								var recNodes = item.querySelectorAll("[xse-type='rec']");
+								var recList = Array.prototype.slice.call(recNodes);
+								recList.forEach(
+									function (rec, i) {
+										if (db[i]) {
+											rec.innerHTML = this.parseRecs(rec.innerHTML, db[i]);
+											this.validProduct += 1;
+										}
+									}.bind(this)
+								);
+							}
+						}.bind(this)
+					);
+					return doc.innerHTML;
+				}
+				addContentTracking(elementContainer, sm, recs) {
+					var contentName = sm.element_id;
+					var contentPiece = recs
+						.slice(0, this.validProduct)
+						.map(function (rec) {
+							return rec['prod_name'];
+						})
+						.toString();
+					var contentTarget = recs
+						.slice(0, this.validProduct)
+						.map(function (rec) {
+							return rec['prod_code'];
+						})
+						.toString();
+
+					if (document.readyState === 'complete') {
+						this.observeElementsViews(elementContainer, contentName, contentPiece, contentTarget);
+						this.trackNativeElement(elementContainer, recs, contentName, contentPiece, contentTarget, sm);
+					} else {
+						document.addEventListener('readystatechange', () => {
+							if (document.readyState === 'complete') {
+								this.observeElementsViews(elementContainer, contentName, contentPiece, contentTarget);
+								this.trackNativeElement(elementContainer, recs, contentName, contentPiece, contentTarget, sm);
+							}
+						});
+					}
+				}
+
+				trackNativeElement(elementContainer, recs, contentName, contentPiece, contentTarget, sm) {
+					if (!isGiftingPLP) return;
+					const isBoostElement = sm.element_name.toLowerCase().includes('boost');
+					if (this.isDisplayed(elementContainer) || isBoostElement)
+						window.xgenTracker.trackContentImpression(contentName, contentPiece, contentTarget);
+					const recList = elementContainer.querySelectorAll('[xse-type="rec"]');
+					recList.forEach(function (node, index) {
+						node.addEventListener('click', function () {
+							window.xgenTracker.trackContentInteraction(
+								'elementClicked',
+								contentName,
+								recs[index]['prod_code'],
+								contentTarget
+							);
+						});
+					});
+					//GA Tracking
+					try {
+						const products = [];
+						for (let i = 0; i < recs.length; i++) {
+							const product = {
+								item_id: recs[i].prod_code,
+								item_name: recs[i].prod_name,
+								currency: recs[i].price_currency,
+								index: i,
+								item_category: recs[i].categories?.[0],
+								item_category2: recs[i].categories?.[1],
+								item_list_id: new URL(recs[i].link).pathname,
+								item_list_name: 'CuratedForYou',
+								item_variant: '',
+								price: recs[i].price,
+								quantity: 1
+							};
+							products.push(product);
+							const elem = isBoostElement ? document : elementContainer;
+							const rec = elem.querySelector(
+								`[xse-type="rec"] [data-style-id="${product.item_id}"]`
+							)?.parentElement;
+							rec?.addEventListener('click', event => {
+								const gaClickEvent = {
+									item_list_id: window.location.pathname,
+									item_list_name: 'CuratedForYou',
+									items: [product]
+								};
+								window.analyticsSdk.tracking.sendEvent({
+									name: 'select_item',
+									event: gaClickEvent
+								});
+							});
+						}
+						const gaImpEvent = {
+							item_list_id: window.location.pathname,
+							item_list_name: 'CuratedForYou',
+							items: products
+						};
+						if (this.isDisplayed(elementContainer) || isBoostElement)
+							window.analyticsSdk.tracking.sendEvent({
+								name: 'view_item_list',
+								event: gaImpEvent
+							});
+					} catch (err) {
+						window.xgenTracker.trackEvent('Error tracking', 'GA tracking error', err.toString());
+					}
+				}
+
+				observeElementsViews(elementContainer, contentName, contentPiece, contentTarget) {
+					if (this.isDisplayed(elementContainer) && this.isInViewport(elementContainer)) {
+						window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+					} else {
+						const intersectionObserver = this.createIntersectionObserver(
+							elementContainer,
+							contentName,
+							contentPiece,
+							contentTarget
+						);
+						const resizeObserver = this.createResizeObserver(
+							elementContainer,
+							contentName,
+							contentPiece,
+							contentTarget
+						);
+						intersectionObserver.observe(elementContainer);
+						resizeObserver.observe(elementContainer);
+						window.xgenTracker.observers[elementContainer.id] = [intersectionObserver, resizeObserver];
+					}
+				}
+
+				createResizeObserver(elementContainer, contentName, contentPiece, contentTarget) {
+					const resizeObserver = new ResizeObserver(entries => {
+						entries.forEach(entry => {
+							if (this.isDisplayed(entry.target) && this.isInViewport(entry.target)) {
+								window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+								window.xgenTracker.observers[elementContainer.id].forEach(observer => {
+									observer.disconnect();
+								});
+							}
+						});
+					});
+					return resizeObserver;
+				}
+
+				createIntersectionObserver(elementContainer, contentName, contentPiece, contentTarget) {
+					const options = {
+						root: null,
+						threshold: 0.4,
+						rootMargin: '0px'
+					};
+
+					const intersectionObserver = new IntersectionObserver(entries => {
+						entries.forEach(entry => {
+							if (this.isDisplayed(entry.target) && entry.isIntersecting) {
+								window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+								window.xgenTracker.observers[elementContainer.id].forEach(observer => {
+									observer.disconnect();
+								});
+							}
+						});
+					}, options);
+
+					return intersectionObserver;
+				}
+
+				isInViewport(element) {
+					var rectangleContainer = element.getBoundingClientRect();
+					return (
+						rectangleContainer.top >= 0 &&
+						rectangleContainer.left >= 0 &&
+						rectangleContainer.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+						rectangleContainer.right <= (window.innerWidth || document.documentElement.clientWidth)
+					);
+				}
+
+				isDisplayed(element) {
+					return element.clientWidth > 0 && element.clientHeight > 0;
+				}
+
+				//Input executable JS into HTML
+				addScript(codeStr) {
+					var newScript = document.createElement('script');
+					var inlineScript = document.createTextNode(codeStr);
+					newScript.appendChild(inlineScript);
+					document.body.appendChild(newScript);
+				}
+				//Render Smart Element on page
+				renderElement(sm, recs) {
+					//get hook element
+					try {
+						var hookElem = document.querySelector(sm.element_hook);
+						if (
+							(sm.enabled && sm.enabled === 'true') ||
+							(sm.element_id == this.getQueryVariable('xse_preview') &&
+								sm.element_preview &&
+								sm.element_preview === 'true')
+						) {
+							//parse seml to html
+							var seml = sm.element_style
+								? '<style>' + sm.element_style + '</style>' + sm.element_body
+								: sm.element_body;
+							// Change images to prevent 404
+							if (!seml || typeof seml != 'string' || String.prototype.replaceAll == undefined) {
+								throw JSON.stringify({
+									elem: sm.element_id,
+									seml: typeof seml != 'string' ? typeof seml : seml.substr(0, 10),
+									body:
+										typeof sm.element_body != 'string'
+											? typeof sm.element_body
+											: sm.element_body.substr(0, 10),
+									style: typeof element_style != 'string' ? typeof element_style : element_style.substr(0, 10),
+									replace: Boolean(String.prototype.replaceAll)
+								});
+							}
+							seml = seml.replaceAll('<img', '<xse-temp-img');
+							seml = seml.replaceAll('</img', '</xse-temp-img');
+							seml = seml.replaceAll('<image', '<xse-temp-img');
+							seml = seml.replaceAll('</image', '</xse-temp-img');
+							seml = seml.replaceAll('src="{{image', 'xse-temp-src="{{image');
+							seml = seml.replaceAll("src='{{image", "xse-temp-src='{{image");
+							var html;
+							if (sm.seml_version && sm.seml_version === '2.0') {
+								html = this.parseSEMLv2(seml, sm.element_id, { product_catalog: recs });
+							} else {
+								html = this.parseSEML(seml, { product_catalog: recs });
+							}
+							//get smart element postion relative to hook element
+							var positions = JSON.parse('{"above": "beforeBegin","below": "afterEnd","replace":"replace"}');
+							var smPos = positions[sm.element_position];
+							//render smart element in correct place
+							var smartElement = document.createElement('div');
+							smartElement.classList.add('XGen_SmartElement');
+							smartElement.id = `XSE-${sm.element_id}`;
+							smartElement.innerHTML = html;
+							this.addContentTracking(smartElement, sm, recs);
+							if (smPos === 'replace') {
+								hookElem.innerHTML = '';
+								hookElem.appendChild(smartElement);
+							} else hookElem.insertAdjacentElement(smPos, smartElement);
+							// Change images back to normal
+							document.querySelectorAll('xse-temp-img').forEach(e => {
+								var newElemHTML = e.outerHTML;
+								newElemHTML = newElemHTML.replaceAll('xse-temp-img', 'img');
+								newElemHTML = newElemHTML.replaceAll('xse-temp-src', 'src');
+								e.outerHTML = newElemHTML;
+							});
+							//add element's javascript
+							if (sm.element_script) this.addScript(sm.element_script);
+						}
+					} catch (err) {
+						window.xgenTracker.trackEvent('Error render', 'cannot render Xgen element', err.toString());
+					}
+				}
+				// Save recommendation images to cache
+				checkAndCacheImages(recs) {
+					recs.forEach(function (rec) {
+						let image = new Image();
+						image.src = rec.image;
+						if (rec.image_alt) {
+							let imageAlt = new Image();
+							imageAlt.src = rec.image_alt;
+						}
+					});
+				}
+				// we may have received the recommendations before the hook is on
+				// the page. We check until it's ready
+				renderWhenReady(sm, recs) {
+					var hookElem = document.querySelector(sm.element_hook);
+					if (!hookElem) {
+						setTimeout(
+							function () {
+								if (document.readyState == 'complete') {
+									this.renderWhenReady(sm, recs);
+								}
+							}.bind(this),
+							30
+						);
+					} else {
+						this.renderElement(sm, recs);
+					}
+				}
+				processRender(data) {
+					data.forEach(
+						function (obj) {
+							if (obj.prediction.length > 0) {
+								this.checkAndCacheImages(obj.prediction);
+								this.renderWhenReady(obj.element, obj.prediction);
+							} else if ('vmfqqn2hg7dl3lxylw3vgbkqcsj476o1' === 'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz') {
+								// send event for yamamay only
+								window.xgenTracker.trackEvent(
+									'Error tracking',
+									`empty predictions for ${obj.element.element_id}`,
+									'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz'
+								);
+							}
+						}.bind(this)
+					);
+				}
+				// Render recommendation result to the page
+				renderPage(data) {
+					var parentData = [];
+					var childData = [];
+					// Sort each object as parent/child data
+					data.forEach(function (obj) {
+						if (obj.error) {
+							throw new RenderApiError(obj.error);
+						}
+						if (obj.element.embedded_type == 'child') {
+							childData.push(obj);
+						} else {
+							parentData.push(obj);
+						}
+					});
+					// render parent data
+					this.processRender(parentData);
+					// render child data
+					this.processRender(childData);
+				}
+				// Save User data result to the cookie
+				saveCookie(data, stale = false) {
+					// Convert user_data JSON into String and store in cookie
+					data['stale'] = stale;
+					if (stale) {
+						window.xgenUtil.setCookie('xgen_meta_data', JSON.stringify(data), new Date(expiration).toUTCString());
+					} else {
+						let sessionExpiration = new Date();
+						sessionExpiration.setTime(sessionExpiration.getTime() + 1800000);
+						window.xgenUtil.setCookie('xgen_session_id', data.session_id, sessionExpiration.toUTCString());
+						let abExpiration = new Date();
+						abExpiration.setTime(abExpiration.getTime() + 34160000000);
+						const params = new Proxy(new URLSearchParams(window.location.search), {
+							get: (searchParams, prop) => searchParams.get(prop)
+						});
+
+						window.xgenUtil.setCookie(
+							'xgen_ab_info',
+							JSON.stringify({
+								ab_test_id: data.ab_test_id,
+								percent: data.percent,
+								testing_group_id: data.testing_group_id,
+								testing_group_name: params.xse_abtest || data.testing_group_name
+							}),
+							abExpiration
+						);
+						delete data.session_id;
+						delete data.ab_test_id;
+						delete data.percent;
+						delete data.testing_group_id;
+						delete data.testing_group_name;
+						window.xgenUtil.saveUserToTracker(data);
+						var expiration = data.expiration_date;
+						window.xgenUtil.setCookie('xgen_meta_data', JSON.stringify(data), new Date(expiration).toUTCString());
+					}
+				}
+				// Render main function
+				async render() {
+					if (window.XGEN_TOOL_USED) {
+						// extension is being used so we do nothing.
+						// Prevents live elements from showing up while using the tool
+						return;
+					}
+					try {
+						const response = await this.renderCallApi(this.payload);
+						var userData = response.user_data;
+						var renderData = response.render_data;
+
+						window.xgenLoader.user.session_id = userData.session_id;
+						window.xgenLoader.abinfo = {
+							ab_test_id: userData.ab_test_id,
+							percent: userData.percent,
+							testing_group_id: userData.testing_group_id,
+							testing_group_name: userData.testing_group_name
+						};
+
+						// Update user data to cookie
+						this.saveCookie(userData);
+						if (renderData.length > 0) {
+							// Render pages
+							this.renderPage(renderData);
+						}
+					} catch (err) {
+						if (err instanceof RenderApiError) {
+							if (
+								['Failed to fetch', 'NetworkError when attempting to fetch resource', 'cancelled'].includes(
+									/TypeError: (?<errorMessage>.+)$/.exec(err.message)?.groups.errorMessage
+								)
+							) {
+								window.xgenTracker.trackEvent(
+									'Error tracking',
+									'api cancelled',
+									'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz',
+									err.toString()
+								);
+							} else {
+								window.xgenTracker.trackEvent(
+									'Error tracking',
+									'render api failed',
+									'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz',
+									err.toString()
+								);
+								this.saveCookie({}, true);
+							}
+						} else {
+							window.xgenTracker.trackEvent(
+								'Error tracking',
+								'render process failed',
+								'l3z5yo6dslfpqkqmagtxb8spqw4zc7cz',
+								err.toString()
+							);
+						}
+					}
+				}
+			}
+
+			window.xgenUtil = new xgenUtil();
+			window.xgenTracker = new xgenTracker();
+			window.xgenLoader = new xgenLoader();
+			if (!window.xgenLoader.checkCrawler()) {
+				async function startRenderLogic() {
+					var cookieExpTime = new Date();
+					// 13 months of expiration, same as what Matomo cookie expiration is.
+					cookieExpTime.setTime(cookieExpTime.getTime() + 3600 * 1000 * 24 * 395);
+					// if the flag is set to false, keep the old way of getting user_id.
+					if ('true' == 'false') {
+						window.xgenLoader.user['user_id'] = this.getVisitorId() || 'unknown';
+					} else {
+						var metaData = window.xgenUtil.getCookie('xgen_meta_data');
+						var metaJson;
+						// check for empty string in case metaData is empty, so JSON.parse() doesn't throw an error.
+						if (metaData != '') metaJson = JSON.parse(metaData);
+
+						// If the current user_id is still using the old matomo user_id,
+						if (metaJson != undefined && metaJson['user_id'] != undefined && metaJson['user_id'].length == 16) {
+							// If it is logging in, switch to the new user_id generation workflow.
+							if (metaJson['action'] == 'User Login' || metaJson['action'] == 'action_login') {
+								window.xgenLoader.user['user_id'] = window.xgenUtil.generateUserId();
+								window.xgenUtil.setCookie(
+									'xgen_user_id',
+									window.xgenLoader.user['user_id'],
+									cookieExpTime.toUTCString()
+								);
+							} else {
+								// else, keep the old_id format until the session expires.
+								window.xgenLoader.user['user_id'] = this.getVisitorId() || 'unknown';
+							}
+							// If it is using the new user_id already, follow the new user_id generation workflow.
+						} else {
+							if (window.xgenUtil.getCookie('xgen_user_id') != '') {
+								window.xgenLoader.user['user_id'] = window.xgenUtil.getCookie('xgen_user_id');
+								window.xgenLoader.user['session_id'] = window.xgenUtil.getCookie('xgen_session_id');
+								if (
+									JSON.parse(window.xgenUtil.getCookie('xgen_meta_data') || '{}')?.user_type == 'new_user' &&
+									window.xgenLoader.user['session_id'] != ''
+								) {
+									window.xgenLoader.user['user_type'] = 'new_user';
+								} else window.xgenLoader.user['user_type'] = 'return_user';
+							} else {
+								window.xgenLoader.user['user_id'] = window.xgenUtil.generateUserId();
+								window.xgenLoader.user['user_type'] = 'new_user';
+								window.xgenUtil.setCookie(
+									'xgen_user_id',
+									window.xgenLoader.user['user_id'],
+									cookieExpTime.toUTCString()
+								);
+							}
+						}
+					}
+					window.xgenLoader.getUserMetaData();
+					window.xgenTracker.trackPageView();
+
+					console.log('before custom script');
+
+					// Customized tracking and contextual ruleset script for GTM clients
+					if (typeof window.xgenCustomScript == 'function') window.xgenCustomScript();
+
+					console.log('after custom script');
+
+					const renderObject = new xgenRender();
+					await renderObject.render();
+
+					// Fire all queued events after render call
+					window.xgenTracker.renderCalled = true;
+					for (queuedEvent of window.xgenTracker.queuedEvents) {
+						window.xgenTracker.sendEvent(queuedEvent);
+					}
+				}
+				startRenderLogic();
+			}
+		}
+
+		function waitForElementAle(selector, callback) {
+			if (!document.querySelector(selector)) {
+				setTimeout(waitForElementAle.bind(null, selector, callback), 100);
+			} else {
+				callback();
+			}
+		}
+		async function waitForElement(selector, timeout = 5000, interval = 100) {
+			const rafAsync = () => new Promise(resolve => requestAnimationFrame(resolve));
+			const sleep = () => new Promise(r => setTimeout(r, interval));
+			const start = Date.now();
+			while (!document.querySelector(selector)) {
+				if (interval) await sleep();
+				await rafAsync();
+			}
+			return document.querySelector(selector);
+		}
+
+		(function () {
+			//xgen script
+			if (window.XGEN_TOOL_USED) {
+				// extension is being used
+				return;
+			}
+			window.xgenCustomScript = function () {
+				// Tracking
+				try {
+					const pdpDl = window.dataLayer.find(dl => dl.event === 'viewProductDetail');
+					const purchaseDl = window.dataLayer.find(dl => dl.event === 'purchase');
+
+					const { currency_code } = window.xgenLoader;
+
+					if (pdpDl) {
+						const product = pdpDl.ecommerce.detail.products[0];
+						const productInfo = [product.id, product.name, { currency_code }, product.price];
+						window.xgenTracker.trackProductDetailPage(...productInfo);
+						document.querySelector('.add-to-shopping-bag')?.addEventListener('click', () => {
+							const sizeNode = document.querySelector('.sizes .size-dropdown');
+							if (
+								sizeNode &&
+								sizeNode?.style?.display !== 'none' &&
+								!sizeNode?.classList?.contains('product-sizes-first-element')
+							)
+								return;
+							window.xgenTracker.trackAddToCart(...productInfo);
+						});
+
+						//Track Google Rec Views and clicks
+						function observeElementsViews(elementContainer, contentName, contentPiece, contentTarget) {
+							if (isDisplayed(elementContainer) && isInViewport(elementContainer)) {
+								window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+							} else {
+								const intersectionObserver = createIntersectionObserver(
+									elementContainer,
+									contentName,
+									contentPiece,
+									contentTarget
+								);
+								const resizeObserver = createResizeObserver(
+									elementContainer,
+									contentName,
+									contentPiece,
+									contentTarget
+								);
+								intersectionObserver.observe(elementContainer);
+								resizeObserver.observe(elementContainer);
+								window.xgenTracker.observers[elementContainer.id] = [intersectionObserver, resizeObserver];
+							}
+						}
+
+						function createIntersectionObserver(elementContainer, contentName, contentPiece, contentTarget) {
+							const options = {
+								root: null,
+								threshold: 0.4,
+								rootMargin: '0px'
+							};
+
+							const intersectionObserver = new IntersectionObserver(entries => {
+								entries.forEach(entry => {
+									if (isDisplayed(entry.target) && entry.isIntersecting) {
+										window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+										window.xgenTracker.observers[elementContainer.id].forEach(observer => {
+											observer.disconnect();
+										});
+									}
+								});
+							}, options);
+
+							return intersectionObserver;
+						}
+
+						function createResizeObserver(elementContainer, contentName, contentPiece, contentTarget) {
+							const resizeObserver = new ResizeObserver(entries => {
+								entries.forEach(entry => {
+									if (isDisplayed(entry.target) && isInViewport(entry.target)) {
+										window.xgenTracker.trackContentView(contentName, contentPiece, contentTarget);
+										window.xgenTracker.observers[elementContainer.id].forEach(observer => {
+											observer.disconnect();
+										});
+									}
+								});
+							});
+							return resizeObserver;
+						}
+						function isInViewport(element) {
+							var rectangleContainer = element.getBoundingClientRect();
+							return (
+								rectangleContainer.top >= 0 &&
+								rectangleContainer.left >= 0 &&
+								rectangleContainer.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+								rectangleContainer.right <= (window.innerWidth || document.documentElement.clientWidth)
+							);
+						}
+						function isDisplayed(element) {
+							return element.clientWidth > 0 && element.clientHeight > 0;
+						}
+					} else if (purchaseDl) {
+						const purchaseInfo = {
+							...purchaseDl.ecommerce.purchase.actionField,
+							products: purchaseDl.ecommerce.purchase.products
+						};
+
+						let pastTransactions = localStorage.getItem('xgRecentTransactions')?.split(',');
+						if (!pastTransactions?.includes(purchaseInfo.id)) {
+							purchaseInfo.products.forEach(product => {
+								window.xgenTracker.addEcommerceItem(
+									product.id,
+									product.name,
+									{
+										currency_code
+									},
+									product.price,
+									product.quantity
+								);
+							});
+							const total =
+								parseFloat(purchaseInfo.revenue) +
+								parseFloat(purchaseInfo.shipping) +
+								parseFloat(purchaseInfo.tax);
+							window.xgenTracker.trackPurchase(purchaseInfo.id, total, purchaseInfo.revenue, purchaseInfo.tax);
+							localStorage.setItem(
+								'xgRecentTransactions',
+								pastTransactions ? [...pastTransactions, purchaseInfo.id].join(',') : purchaseInfo.id
+							);
+						}
+					}
+				} catch (err) {
+					window.xgenTracker.trackEvent('Error tracking', 'tracking script error', err.toString());
+				}
+				// Page Types
+				try {
+					let queryParams = {};
+
+					if (!location.host.includes('www.gucci.com')) {
+						queryParams['devHost'] = 'true';
+					}
+					const cartPage = window.dataLayer.find(dl => dl.event === 'view_cart');
+					const recentlyViewed = JSON.parse(localStorage.getItem('xgenRecentlyViewed') || '[]');
+					if (cartPage && cartPage.items && cartPage.items.length) {
+						window.xgenLoader.savePageContext(
+							'exclude',
+							cartPage.items
+								.map(itm => {
+									return itm.item_id;
+								})
+								.join('|')
+						);
+					}
+
+					if (recentlyViewed.length < 2 && location.pathname.indexOf('-p-') !== -1) queryParams['xse_ruleset'] = 1;
+
+					window.xgenLoader.savePageContext(
+						'queryString',
+						window.location.search.replace('?', '') +
+							(window.location.search == '' ? '' : '&') +
+							Object.entries(queryParams)
+								.map(param => param.join('='))
+								.join('&')
+					);
+				} catch (err) {
+					window.xgenTracker.trackEvent('Error tracking', 'contextual pagetype error', err.toString());
+				}
+
+				// Contextual Rulesets
+				try {
+					const GENDER_CATEGORY_LIST = [
+						'women',
+						'men',
+						'children',
+						'jewelry-watches',
+						'jewellery-watches',
+						'beauty',
+						'decor-lifestyle'
+					];
+					const MERCH_MAP = {
+						'447632DTD1T1000': '466492DTD1T1000',
+						'63168596IWB8745': '52315396IWG8745',
+						'7423601IV0G1000': '760317AACP71000',
+						'448065DTD1T1000': '443127DTD1T1000',
+						'735132FABLE9442': '52315996IWG8745',
+						'443497DTDIT1000': '466492DTD1T1000',
+						'447632DTDHV1000': '466492DTD1T1000',
+						'63168596IWN4076': '52315496IWN4076',
+						'735145KAAAD8358': '52315996IWG8745',
+						'63670910O0G1000': '64553614J0G1000',
+						'634936DTDHV1000': '443127DTD1T1000',
+						'443496DTDIT1000': '466492DTD1T1000',
+						'499621K05NG8745': '52315596IWG8745',
+						'446744DTDIT1000': '466492DTD1T1000',
+						'631685UULAG9682': '523154UULAG9682',
+						'722117FAAX39789': '52315596IWG8745',
+						'735132UULAG9682': '523159UULAG9682',
+						'479197KHNKG9769': '45611717WAG1283',
+						'721172UXXAG1064': '760317AACP71000',
+						'702234UM8HG1046': '723786UM8IG1000'
+					};
+					const pdpDl = window.dataLayer.find(dl => dl.event === 'viewProductDetail');
+					const cartPage =
+						window.location.pathname.includes('/cart') &&
+						window.dataLayer.find(dl => dl.event === 'shoppingBagDetails')?.ecommerce?.cart?.products?.length > 0;
+					if (pdpDl) {
+						const dlProduct = pdpDl.ecommerce.detail.products[0];
+						let dlCategory = dlProduct.category.toLowerCase();
+						let [gender] = dlCategory.split('/');
+
+						if (!GENDER_CATEGORY_LIST.includes(gender)) {
+							const backupGenderCategory = GENDER_CATEGORY_LIST.find(gender => dlCategory.includes(gender));
+							if (backupGenderCategory) gender = backupGenderCategory;
+						}
+
+						gender = `/${gender}/`;
+
+						window.xgenLoader.savePageContext('xt_gender', gender);
+
+						try {
+							let category = [...document.querySelectorAll('[type="application/ld+json"]')].reduce((arr, ld) => {
+								const content = JSON.parse(ld.innerHTML.replaceAll(/\n|\t/g, ''));
+								if (content['@type'] == 'BreadcrumbList') {
+									const pdpCollection = content.itemListElement?.[0]?.item?.['@id']
+										?.split('/')
+										.pop()
+										.split('-c-')
+										.shift();
+									arr = '';
+									if (pdpCollection) arr = '/' + pdpCollection + '/';
+								}
+								return arr;
+							}, '');
+
+							if (!category) {
+								const urlCategory = window.location.pathname.split(gender)[1]?.split('/').shift();
+								if (urlCategory) category = '/' + urlCategory + '/';
+							}
+
+							window.xgenLoader.savePageContext('xt_category', category);
+						} catch (e) {
+							window.xgenLoader.savePageContext('xt_category', '');
+							console.log('error getting categories from json+ld');
+							window.xgenTracker.trackEvent(
+								'Error tracking',
+								'error getting categories from json+ld',
+								e.toString()
+							);
+						}
+
+						if (dlProduct.id in MERCH_MAP)
+							window.xgenLoader.savePageContext('xt_pinned_product', MERCH_MAP[dlProduct.id]);
+					}
+					if (location.pathname.includes('-c-')) {
+						const handle = location.pathname.split('/').pop();
+						const category = handle.split('-c-')[0].replaceAll('-', ' ');
+						window.xgenLoader.savePageContext('xt_category', category);
+					}
+					if (cartPage) {
+						const cartItems = window.dataLayer.find(dl => dl.event === 'shoppingBagDetails')?.ecommerce?.cart
+							?.products;
+						const itemIds = [];
+						for (let item of cartItems) {
+							itemIds.push(item.id);
+						}
+						window.xgenLoader.savePageContext('exclude', Array.from(new Set(itemIds)).join('|'));
+					}
+				} catch (err) {
+					window.xgenTracker.trackEvent('Error tracking', 'contextual ruleset error', err.toString());
+				}
+			};
+
+			function pinAvailableProducts(predictions) {
+				try {
+					if (
+						!predictions?.length ||
+						!xgenRecsData?.render_data ||
+						!window.xgenCurrentPlacement ||
+						!Object.keys(xgenElementsMap ?? {}).length
+					)
+						return predictions;
+
+					const pinnedElement = xgenRecsData.render_data.find(elementObj =>
+						/\bpinned\b/.test(elementObj.element?.element_name?.toLowerCase())
+					);
+
+					if (!pinnedElement?.prediction?.length) return predictions;
+
+					return [...pinnedElement.prediction, ...predictions];
+				} catch (err) {
+					console.log('No pinned products added to predictions');
+					return predictions;
+				}
+			}
+
+			function mapXgenPredictions() {
+				let toMap = xgenElementsMap?.[window.xgenCurrentPlacement]?.prediction || [];
+				toMap = pinAvailableProducts(toMap);
+				return toMap.map(item => {
+					return {
+						id: item.prod_code,
+						details: {
+							currency: item.price_currency,
+							image_url: item.image,
+							name: item.prod_name,
+							unit_price: item.price,
+							url: item.link
+						}
+					};
+				});
+			}
+
+			const CLIENT_ELEMENT_SELECTOR = '#reco-carousel, [data-certona="certonaRecommendation_v2"] .carousel-inner';
+			const CLIENT_PRODUCT_SELECTOR = '.reco-carousel-product, .certona-recommendation-v2__slide a[data-style-id]';
+			const CLIENT_PRODUCT_NAME_SELECTOR = '.reco-carousel-product-name, .certona-recommendation-v2__product-info .h3';
+
+			const getClientProdCode = productAnchor => {
+				try {
+					return new URL(productAnchor.href).pathname.split('-p-')[1];
+				} catch (err) {
+					return '';
+				}
+			};
+
+			const addXgenContentTracking = element => {
+				const productNodes = element.querySelectorAll(CLIENT_PRODUCT_SELECTOR);
+				const productNames = [];
+				const productCodes = [];
+				productNodes.forEach(product => {
+					productNames.push(product.querySelector(CLIENT_PRODUCT_NAME_SELECTOR)?.textContent || '');
+					productCodes.push(getClientProdCode(product));
+				});
+
+				window.xgenTracker.trackContentImpression(
+					window.xgenCurrentPlacement,
+					productNames.join(','),
+					productCodes.join(',')
+				);
+				productNodes.forEach(product =>
+					product.addEventListener('click', event => {
+						window.xgenTracker.trackContentInteraction(
+							'elementClicked',
+							window.xgenCurrentPlacement,
+							getClientProdCode(product),
+							productCodes.join(',')
+						);
+					})
+				);
+			};
+
+			const trackXgenContent = predictions => {
+				try {
+					if (window.xgenTrackingContent) return;
+
+					window.xgenTrackingContent = true;
+
+					if (!predictions?.length) return;
+
+					const checkForXgenElem = (_, observer) => {
+						const clientElement = document.querySelector(CLIENT_ELEMENT_SELECTOR);
+						if (!clientElement) return;
+
+						observer.disconnect();
+
+						const clientElementProductIds = [...clientElement.querySelectorAll(CLIENT_PRODUCT_SELECTOR)].map(
+							getClientProdCode
+						);
+						const isElementXgen = !clientElementProductIds.find(
+							productId => !predictions.find(rec => rec.id === productId)
+						);
+
+						if (isElementXgen) addXgenContentTracking(clientElement);
+					};
+					const xgenElementObserver = new MutationObserver(checkForXgenElem);
+					xgenElementObserver.observe(document.documentElement, { attributes: false, childList: true, subtree: true });
+				} catch (err) {
+					window.xgenTracker?.trackEvent('Error tracking', 'Element tracking error', err.toString());
+				}
+			};
+
+			window.getXgenPredictions = function () {
+				return new Promise((resolve, reject) => {
+					if (xgenRecsData) {
+						const predictions = mapXgenPredictions();
+						resolve(predictions);
+						trackXgenContent(predictions);
+						return true;
+					}
+
+					window.addEventListener('xgenRendered', function () {
+						const predictions = mapXgenPredictions();
+						resolve(predictions);
+						trackXgenContent(predictions);
+					});
+				});
+			};
+
+			window.sendXgenEvents = function () {
+				window.dispatchEvent(
+					new CustomEvent('xgen_send_events', {
+						detail: {
+							callback: function (xse_el) {
+								const gucciSelector = '.certona-recommendation-v2__slide';
+								const addParam = (url, prod_code) => {
+									const parsed = new URL(url);
+									const params = new URLSearchParams(parsed.search);
+									params.append('xse', xse_el);
+									params.append('xse_prod_code', prod_code);
+									parsed.search = params.toString();
+									return parsed.toString();
+								};
+								let carousel = document.querySelector(gucciSelector)?.parentElement;
+								if (!carousel) return;
+								let links = carousel.querySelectorAll('.js-ga-track');
+								for (let link of links) {
+									link.href = addParam(link.href, link.dataset.styleId);
+								}
+							}
+						}
+					})
+				);
+			};
+
+			if (!location.pathname.includes('-p-')) {
+				initXgenRenderScript();
+			} else {
+				let startInterval = setInterval(() => {
+					const pdpDl = window.dataLayer.find(dl => dl.event === 'viewProductDetail');
+					if (pdpDl) {
+						clearInterval(startInterval);
+						initXgenRenderScript();
+					}
+				}, 250);
+			}
+		})();
+	};
+
+	const GPP_CODE = 'C0003';
+
+	const initialOTGroups = window.OnetrustActiveGroups?.split(',');
+	const cookieEnabled = initialOTGroups.includes(GPP_CODE);
+	const cookieDialogClosed = document.cookie.includes('OptanonAlertBoxClosed');
+
+	if (cookieEnabled) {
+		initXgenIntegration();
+	} else if (!cookieEnabled && !cookieDialogClosed) {
+		window.addEventListener('consent.onetrust', event => {
+			if (event.detail.includes(GPP_CODE)) initXgenIntegration();
+		});
+	}
+})();
